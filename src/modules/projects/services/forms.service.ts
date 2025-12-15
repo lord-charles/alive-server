@@ -63,7 +63,7 @@ export class FormsService {
     }
 
     return this.formModel
-      .find({ projectId: new Types.ObjectId(projectId), deletedAt: null })
+      .find({ projectId: projectId, deletedAt: null })
       .exec();
   }
 
@@ -129,7 +129,7 @@ export class FormsService {
       responses: responseDto.responses,
       location: responseDto.location,
       status: responseDto.status || 'submitted',
-      submittedBy: userId,
+      submittedBy: new Types.ObjectId(userId),
       submittedAt: new Date(),
     });
 
@@ -150,6 +150,8 @@ export class FormsService {
 
     return this.responseModel
       .find({ formId: new Types.ObjectId(formId), deletedAt: null })
+      .populate('submittedBy', 'firstName lastName email')
+      .populate('verifiedBy', 'firstName lastName email')
       .sort({ submittedAt: -1 })
       .exec();
   }
@@ -172,7 +174,7 @@ export class FormsService {
     }
 
     response.status = verifyDto.status;
-    response.verifiedBy = userId;
+    response.verifiedBy = new Types.ObjectId(userId);
     response.verifiedAt = new Date();
 
     return response.save();

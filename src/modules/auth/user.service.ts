@@ -76,14 +76,37 @@ export class UserService {
     return { token, user };
   }
 
-  async findAll(filterDto: UserFilterDto): Promise<{ users: User[] }> {
-    const { status, page = 1, limit = 10 } = filterDto;
-    const query = this.userModel.find();
-    const users = await query
+  async findAll(filterDto: UserFilterDto): Promise<{
+    users: User[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const { status, search, page = 1, limit = 10 } = filterDto;
+    const query: any = {};
+
+    if (status) {
+      query.status = status;
+    }
+
+    if (search) {
+      query.$or = [
+        { firstName: { $regex: search, $options: 'i' } },
+        { lastName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { phoneNumber: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const total = await this.userModel.countDocuments(query);
+    const users = await this.userModel
+      .find(query)
       .skip((page - 1) * limit)
       .limit(limit)
+      .sort({ createdAt: -1 })
       .exec();
-    return { users };
+
+    return { users, total, page, limit };
   }
 
   async basicInfo(): Promise<{ users: User[] }> {
@@ -140,6 +163,119 @@ export class UserService {
   async remove(id: string, req?: Request): Promise<void> {
     const user = await this.userModel.findByIdAndDelete(id);
     if (!user) throw new NotFoundException('User not found');
+  }
+
+  async createByAdmin(
+    createUserDto: CreateUserDto,
+    req?: Request,
+  ): Promise<User> {
+    const existingUser = await this.userModel.findOne({
+      $or: [
+        { email: createUserDto.email },
+        { phoneNumber: createUserDto.phoneNumber },
+        { nationalId: createUserDto.nationalId },
+      ],
+    });
+
+    if (existingUser) {
+      throw new BadRequestException(
+        'User with provided details already exists',
+      );
+    }
+
+    // Generate a temporary password
+    const tempPassword = this.generateTempPassword();
+
+    const { roles, ...userData } = createUserDto;
+    const newUser = new this.userModel({
+      ...userData,
+      password: tempPassword,
+      roles: Array.isArray(roles) && roles.length > 0 ? roles : ['employee'],
+      emailVerified: true, // Admin created users are pre-verified
+      phoneVerified: true,
+    });
+
+    const savedUser = await newUser.save();
+
+    // Send credentials via SMS
+    try {
+      await this.sendCredentialsSMS(savedUser, tempPassword);
+    } catch (error) {
+      console.error('Failed to send SMS:', error);
+      // Don't fail user creation if SMS fails
+    }
+
+    return savedUser;
+  }
+
+  async getStatistics(): Promise<{
+    totalUsers: number;
+    activeUsers: number;
+    inactiveUsers: number;
+    newUsersThisMonth: number;
+  }> {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [totalUsers, activeUsers, inactiveUsers, newUsersThisMonth] =
+      await Promise.all([
+        this.userModel.countDocuments(),
+        this.userModel.countDocuments({ status: 'active' }),
+        this.userModel.countDocuments({ status: { $ne: 'active' } }),
+        this.userModel.countDocuments({
+          createdAt: { $gte: startOfMonth },
+        }),
+      ]);
+
+    return {
+      totalUsers,
+      activeUsers,
+      inactiveUsers,
+      newUsersThisMonth,
+    };
+  }
+
+  private generateTempPassword(): string {
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    let password = '';
+    for (let i = 0; i < 8; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password + '!';
+  }
+
+  async bulkUpdateStatus(
+    userIds: string[],
+    status: string,
+    req?: Request,
+  ): Promise<{ updated: number }> {
+    const result = await this.userModel.updateMany(
+      { _id: { $in: userIds } },
+      { status },
+    );
+
+    return { updated: result.modifiedCount };
+  }
+
+  async bulkDelete(
+    userIds: string[],
+    req?: Request,
+  ): Promise<{ deleted: number }> {
+    const result = await this.userModel.deleteMany({
+      _id: { $in: userIds },
+    });
+
+    return { deleted: result.deletedCount };
+  }
+
+  private async sendCredentialsSMS(
+    user: User,
+    password: string,
+  ): Promise<void> {
+    const message = `Welcome to Alive! Your login credentials:\nEmail: ${user.email}\nPassword: ${password}\nPlease change your password after first login.`;
+
+    // Use the notification service to send SMS
+    await this.notificationService.sendSMS(user.phoneNumber, message);
   }
 
   async updatePassword(

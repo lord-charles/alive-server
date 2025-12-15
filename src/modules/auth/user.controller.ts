@@ -58,6 +58,77 @@ export class UserController {
     });
   }
 
+  // @Roles('admin', 'hr')
+  @Post('/users')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Create new employee (Admin only)',
+    description: 'Create a new employee account and send credentials via SMS',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Employee created successfully',
+    type: CreateUserDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid input data or user already exists',
+  })
+  async create(@Body() createUserDto: CreateUserDto, @Req() req: Request) {
+    return this.userService.createByAdmin(createUserDto, req);
+  }
+
+  // @Roles('admin', 'hr')
+  @Get('/users/statistics')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get user statistics',
+    description: 'Returns user statistics for dashboard cards',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Statistics retrieved successfully',
+  })
+  async getStatistics() {
+    return this.userService.getStatistics();
+  }
+
+  // @Roles('admin')
+  @Patch('/users/bulk-status')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Bulk update user status',
+    description: 'Update status for multiple users at once',
+  })
+  async bulkUpdateStatus(
+    @Body() bulkUpdateDto: { userIds: string[]; status: string },
+    @Req() req: Request,
+  ) {
+    return this.userService.bulkUpdateStatus(
+      bulkUpdateDto.userIds,
+      bulkUpdateDto.status,
+      req,
+    );
+  }
+
+  // @Roles('admin')
+  @Delete('/users/bulk')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Bulk delete users',
+    description: 'Delete multiple users at once',
+  })
+  async bulkDelete(
+    @Body() bulkDeleteDto: { userIds: string[] },
+    @Req() req: Request,
+  ) {
+    return this.userService.bulkDelete(bulkDeleteDto.userIds, req);
+  }
+
   @Get('/users/basic-info')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)

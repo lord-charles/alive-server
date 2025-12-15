@@ -35,8 +35,8 @@ export class FormResponse {
   responses: Map<string, any>;
 
   @ApiProperty({ description: 'User who submitted the response' })
-  @Prop({ required: true })
-  submittedBy: string;
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
+  submittedBy: Types.ObjectId;
 
   @ApiProperty({ description: 'Submission timestamp' })
   @Prop({ required: true, default: Date.now })
@@ -67,8 +67,8 @@ export class FormResponse {
     description: 'User who verified the response',
     required: false,
   })
-  @Prop()
-  verifiedBy?: string;
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  verifiedBy?: Types.ObjectId;
 
   @ApiProperty({ description: 'Verification timestamp', required: false })
   @Prop()

@@ -12,6 +12,13 @@ export class UserFilterDto {
   @IsEnum(['active', 'inactive', 'suspended', 'terminated'])
   status?: string;
 
+  @ApiProperty({
+    description: 'Search term for filtering users by name, email, or phone',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
 
   @ApiProperty({
     description: 'Page number for pagination',
