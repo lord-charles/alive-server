@@ -13,7 +13,7 @@ async function bootstrap() {
   app.enableCors();
 
   // Set global prefix for all routes
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix('alive/api');
 
   // Get the configuration service
   const configService = app.get(ConfigService);
