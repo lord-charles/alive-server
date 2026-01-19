@@ -30,7 +30,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
 
   // Setup Swagger under the global prefix path
-  SwaggerModule.setup('api/docs', app, document, {
+  SwaggerModule.setup('alive/api/docs', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
       defaultModelsExpandDepth: -1,
@@ -50,8 +50,8 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   logger.log(`Server is running on: http://localhost:${port}`);
   logger.log(
-    `API Documentation available at: http://localhost:${port}/api/docs`,
+    `API Documentation available at: http://localhost:${port}/alive/api/docs`,
   );
-  logger.log(`API Base URL: http://localhost:${port}/api`);
+  logger.log(`API Base URL: http://localhost:${port}/alive/api`);
 }
 bootstrap();
